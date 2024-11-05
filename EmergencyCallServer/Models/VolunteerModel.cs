@@ -9,13 +9,13 @@ namespace EmergencyCallServer.Models
 {
     public class VolunteerModel
     {
-        private readonly ApplicationDbContext _context;
+        private readonly VolunteersDB _volunteersDB;
         private readonly GoogleCloudStorageModel _storageService;
         private readonly GeocodingModel _geocodingModel;
 
-        public VolunteerModel(ApplicationDbContext context, GoogleCloudStorageModel storageService,GeocodingModel geocodingModel)
+        public VolunteerModel(VolunteersDB volunteersDB, GoogleCloudStorageModel storageService,GeocodingModel geocodingModel)
         {
-            _context = context;
+            _volunteersDB = volunteersDB;
             _storageService = storageService;
             _geocodingModel = geocodingModel;
         }
@@ -28,7 +28,7 @@ namespace EmergencyCallServer.Models
               
 
                 // Check for duplicate UniqueIdNumber
-                if (_context.Volunteers.Any(v => v.UniqueIdNumber == volunteer.UniqueIdNumber))
+                if (_volunteersDB.Volunteers.Any(v => v.UniqueIdNumber == volunteer.UniqueIdNumber))
                 {
                     throw new InvalidOperationException($"A volunteer with Unique ID number {volunteer.UniqueIdNumber} already exists.");
                 }
@@ -60,8 +60,8 @@ namespace EmergencyCallServer.Models
                     throw new InvalidOperationException("Failed to retrieve coordinates for the provided address.", ex);
                 }
 
-                _context.Volunteers.Add(volunteer);
-                await _context.SaveChangesAsync();
+                _volunteersDB.Volunteers.Add(volunteer);
+                await _volunteersDB.SaveChangesAsync();
             }
             catch (Exception ex)
             {
@@ -74,7 +74,7 @@ namespace EmergencyCallServer.Models
         {
             try
             {
-                var volunteer = await _context.Volunteers.FindAsync(id);
+                var volunteer = await _volunteersDB.Volunteers.FindAsync(id);
 
                 if (volunteer == null)
                 {
@@ -94,23 +94,54 @@ namespace EmergencyCallServer.Models
         {
             try
             {
-                var existingVolunteer = await _context.Volunteers.FindAsync(updatedVolunteer.Id);
+                if (updatedVolunteer == null) throw new ArgumentNullException(nameof(updatedVolunteer), "Updated volunteer data cannot be null.");
+
+                // Check if the volunteer exists in the database
+                var existingVolunteer = await _volunteersDB.Volunteers.FindAsync(updatedVolunteer.Id);
                 if (existingVolunteer == null) throw new ArgumentException("Volunteer not found.");
 
+                // Check for duplicate UniqueIdNumber if it has changed
+                if (_volunteersDB.Volunteers.Any(v => v.UniqueIdNumber == updatedVolunteer.UniqueIdNumber && v.Id != updatedVolunteer.Id))
+                {
+                    throw new InvalidOperationException($"A volunteer with Unique ID number {updatedVolunteer.UniqueIdNumber} already exists.");
+                }
+
+                // Update volunteer data
                 existingVolunteer.FirstName = updatedVolunteer.FirstName;
                 existingVolunteer.LastName = updatedVolunteer.LastName;
                 existingVolunteer.Phone = updatedVolunteer.Phone;
-                existingVolunteer.Latitude = updatedVolunteer.Latitude;
-                existingVolunteer.Longitude = updatedVolunteer.Longitude;
                 existingVolunteer.Address = updatedVolunteer.Address;
 
+                // Try to update coordinates if address has changed
+                try
+                {
+                    if (!string.IsNullOrEmpty(updatedVolunteer.Address) && updatedVolunteer.Address != existingVolunteer.Address)
+                    {
+                        GeoPoint location = await _geocodingModel.GetCoordinatesAsync(updatedVolunteer.Address);
+                        existingVolunteer.Latitude = location.Latitude;
+                        existingVolunteer.Longitude = location.Longitude;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Handle errors with the geocoding service gracefully
+                    throw new InvalidOperationException("Failed to retrieve coordinates for the updated address.", ex);
+                }
+
+                // If there’s a new photo, update the photo URL
                 if (newPhoto != null)
                 {
                     await _storageService.DeletePhotoAsync(existingVolunteer.UniqueIdNumber);
                     existingVolunteer.PhotoUrl = await _storageService.UploadPhotoAsync(newPhoto, existingVolunteer.UniqueIdNumber);
                 }
+                else if (string.IsNullOrEmpty(existingVolunteer.PhotoUrl))
+                {
+                    // If no new photo and no existing photo, set a default
+                    existingVolunteer.PhotoUrl = "NoPhoto";
+                }
 
-                await _context.SaveChangesAsync();
+                // Save changes
+                await _volunteersDB.SaveChangesAsync();
             }
             catch (Exception ex)
             {
@@ -123,13 +154,13 @@ namespace EmergencyCallServer.Models
         {
             try
             {
-                var volunteer = await _context.Volunteers.FindAsync(id);
+                var volunteer = await _volunteersDB.Volunteers.FindAsync(id);
                 if (volunteer == null) throw new ArgumentException("Volunteer not found.");
 
-                await _storageService.DeletePhotoAsync(volunteer.UniqueIdNumber);
+                _volunteersDB.Volunteers.Remove(volunteer);
+                await _volunteersDB.SaveChangesAsync();
 
-                _context.Volunteers.Remove(volunteer);
-                await _context.SaveChangesAsync();
+                await _storageService.DeletePhotoAsync(volunteer.UniqueIdNumber);
             }
             catch (Exception ex)
             {

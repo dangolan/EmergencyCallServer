@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using EmergencyCallServer.utils;
+using Newtonsoft.Json;
 
 public class GeocodingModel
 {
@@ -17,30 +18,53 @@ public class GeocodingModel
 
     public async Task<GeoPoint> GetCoordinatesAsync(string address)
     {
-        var requestUri = $"https://maps.googleapis.com/maps/api/geocode/json?address={Uri.EscapeDataString(address)}&key={_apiKey}";
-
-        var response = await _httpClient.GetAsync(requestUri);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var jsonResponse = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(jsonResponse);
+            var requestUri = $"https://maps.googleapis.com/maps/api/geocode/json?address={Uri.EscapeDataString(address)}&key={_apiKey}";
 
-            if (json["results"].HasValues)
+            var response = await _httpClient.GetAsync(requestUri);
+
+            if (response.IsSuccessStatusCode)
             {
-                var location = json["results"][0]["geometry"]["location"];
-                var latitude = location["lat"].Value<decimal>();
-                var longitude = location["lng"].Value<decimal>();
+                var jsonResponse = await response.Content.ReadAsStringAsync();
+                var json = JObject.Parse(jsonResponse);
 
-                return new GeoPoint(latitude, longitude);
+                if (json["results"].HasValues)
+                {
+                    var location = json["results"][0]["geometry"]["location"];
+                    var latitude = location["lat"].Value<decimal>();
+                    var longitude = location["lng"].Value<decimal>();
+
+                    return new GeoPoint(latitude, longitude);
+                }
+                else
+                {
+                    // No results for the address
+                    throw new Exception("No results found for the specified address.");
+                }
             }
             else
             {
-                throw new Exception("No results found for the specified address.");
+                // Unsuccessful status code returned from the API
+                throw new HttpRequestException($"Error fetching coordinates: {response.ReasonPhrase}");
             }
         }
-
-        throw new Exception($"Error fetching coordinates: {response.ReasonPhrase}");
+        catch (HttpRequestException httpEx)
+        {
+            // Handle specific HTTP errors here
+            throw new Exception("A network error occurred while fetching coordinates.", httpEx);
+        }
+        catch (JsonReaderException jsonEx)
+        {
+            // Handle issues with JSON parsing
+            throw new Exception("An error occurred while parsing the geocoding response.", jsonEx);
+        }
+        catch (Exception ex)
+        {
+            // Handle all other exceptions
+            throw new Exception("An unexpected error occurred while fetching coordinates.", ex);
+        }
     }
+
 }
 

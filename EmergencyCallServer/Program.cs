@@ -13,7 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Register ApplicationDbContext with the connection string
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContext<VolunteersDB>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register RouteModel with HttpClient for dependency injection

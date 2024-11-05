@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using EmergencyCallServer.utils;
-public class ApplicationDbContext : DbContext
+public class VolunteersDB : DbContext
 {
     public DbSet<Volunteer> Volunteers { get; set; }
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+    public VolunteersDB(DbContextOptions<VolunteersDB> options) : base(options) { }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

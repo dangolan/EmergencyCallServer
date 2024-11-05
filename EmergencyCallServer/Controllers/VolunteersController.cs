@@ -40,6 +40,10 @@ namespace EmergencyCallServer.Controllers
             {
                 return BadRequest("Unique ID number is required.");
             }
+            if (string.IsNullOrWhiteSpace(volunteer.Phone))
+            {
+                return BadRequest("Phone number is required.");
+            }
 
             // Validate photo
             if (photo?.Photo != null && photo.Photo.ContentType != "image/png")

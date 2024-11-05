@@ -9,10 +9,10 @@ namespace EmergencyCallServer.Models
 {
     public class EventVolunteersModel
     {
-        private readonly ApplicationDbContext _context;
+        private readonly VolunteersDB _context;
         private readonly RouteModel _routeModel;
 
-        public EventVolunteersModel(ApplicationDbContext context, RouteModel routeModel)
+        public EventVolunteersModel(VolunteersDB context, RouteModel routeModel)
         {
             _context = context;
             _routeModel = routeModel;
