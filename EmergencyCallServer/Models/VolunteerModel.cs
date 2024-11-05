@@ -11,11 +11,13 @@ namespace EmergencyCallServer.Models
     {
         private readonly ApplicationDbContext _context;
         private readonly GoogleCloudStorageModel _storageService;
+        private readonly GeocodingModel _geocodingModel;
 
-        public VolunteerModel(ApplicationDbContext context, GoogleCloudStorageModel storageService)
+        public VolunteerModel(ApplicationDbContext context, GoogleCloudStorageModel storageService,GeocodingModel geocodingModel)
         {
             _context = context;
             _storageService = storageService;
+            _geocodingModel = geocodingModel;
         }
 
         public async Task AddVolunteerAsync(Volunteer volunteer, IFormFile photo)
@@ -40,6 +42,22 @@ namespace EmergencyCallServer.Models
                 else
                 {
                     volunteer.PhotoUrl = "NoPhoto";
+                }
+
+                // Try to get coordinates for the address
+                try
+                {
+                    if (!string.IsNullOrEmpty(volunteer.Address))
+                    {
+                        GeoPoint location = await _geocodingModel.GetCoordinatesAsync(volunteer.Address);
+                        volunteer.Latitude = location.Latitude;
+                        volunteer.Longitude = location.Longitude;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception if logging is set up, or handle the error as needed
+                    throw new InvalidOperationException("Failed to retrieve coordinates for the provided address.", ex);
                 }
 
                 _context.Volunteers.Add(volunteer);

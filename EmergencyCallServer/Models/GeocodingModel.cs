@@ -29,8 +29,8 @@ public class GeocodingModel
             if (json["results"].HasValues)
             {
                 var location = json["results"][0]["geometry"]["location"];
-                var latitude = location["lat"].Value<double>();
-                var longitude = location["lng"].Value<double>();
+                var latitude = location["lat"].Value<decimal>();
+                var longitude = location["lng"].Value<decimal>();
 
                 return new GeoPoint(latitude, longitude);
             }
