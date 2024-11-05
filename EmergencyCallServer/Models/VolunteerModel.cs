@@ -1,86 +1,124 @@
-﻿using System.Linq;
-using EmergencyCallServer.utils;
+﻿using EmergencyCallServer.utils;
+using Google.Cloud.Storage.V1;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace EmergencyCallServer.Models
 {
     public class VolunteerModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly GoogleCloudStorageModel _storageService;
 
-        public VolunteerModel(ApplicationDbContext context)
+        public VolunteerModel(ApplicationDbContext context, GoogleCloudStorageModel storageService)
         {
             _context = context;
+            _storageService = storageService;
         }
 
-        public void AddVolunteer(Volunteer volunteer)
+        public async Task AddVolunteerAsync(Volunteer volunteer, IFormFile photo)
         {
-            if (volunteer == null)
+            try
             {
-                throw new ArgumentNullException(nameof(volunteer), "Volunteer cannot be null.");
-            }
+                if (volunteer == null) throw new ArgumentNullException(nameof(volunteer), "Volunteer cannot be null.");
+              
 
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(volunteer.FirstName))
+                // Check for duplicate UniqueIdNumber
+                if (_context.Volunteers.Any(v => v.UniqueIdNumber == volunteer.UniqueIdNumber))
+                {
+                    throw new InvalidOperationException($"A volunteer with Unique ID number {volunteer.UniqueIdNumber} already exists.");
+                }
+
+                if (photo != null)
+                {
+
+                    // Upload the photo and set its URL in the volunteer's data
+                    volunteer.PhotoUrl = await _storageService.UploadPhotoAsync(photo, volunteer.UniqueIdNumber);
+                }
+                else
+                {
+                    volunteer.PhotoUrl = "NoPhoto";
+                }
+
+                _context.Volunteers.Add(volunteer);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
             {
-                throw new ArgumentException("First name is required.", nameof(volunteer.FirstName));
+                // Log the exception if logging is set up
+                throw new Exception("An error occurred while adding the volunteer.", ex);
             }
-
-            if (string.IsNullOrWhiteSpace(volunteer.LastName))
-            {
-                throw new ArgumentException("Last name is required.", nameof(volunteer.LastName));
-            }
-
-            if (string.IsNullOrWhiteSpace(volunteer.UniqueIdNumber))
-            {
-                throw new ArgumentException("Unique ID number is required.", nameof(volunteer.UniqueIdNumber));
-            }
-
-            // Check for duplicate UniqueIdNumber
-            var existingVolunteer = _context.Volunteers
-                .FirstOrDefault(v => v.UniqueIdNumber == volunteer.UniqueIdNumber);
-            if (existingVolunteer != null)
-            {
-                throw new InvalidOperationException($"A volunteer with Unique ID number {volunteer.UniqueIdNumber} already exists.");
-            }
-
-            // Add the volunteer to the context and save changes
-            _context.Volunteers.Add(volunteer);
-            _context.SaveChanges();
         }
 
-
-        public Volunteer GetVolunteer(int id)
+        public async Task<Volunteer> GetVolunteerAsync(int id)
         {
-            return _context.Volunteers.Find(id);
+            try
+            {
+                var volunteer = await _context.Volunteers.FindAsync(id);
+
+                if (volunteer == null)
+                {
+                    throw new Exception($"Volunteer with ID {id} not found.");
+                }
+
+                return volunteer;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if logging is set up
+                throw new Exception("An error occurred while retrieving the volunteer.", ex);
+            }
         }
 
-
-
-        public void UpdateVolunteer(Volunteer updatedVolunteer)
+        public async Task UpdateVolunteerAsync(Volunteer updatedVolunteer, IFormFile newPhoto)
         {
-            var existingVolunteer = _context.Volunteers.Find(updatedVolunteer.Id);
-            if (existingVolunteer != null)
+            try
             {
+                var existingVolunteer = await _context.Volunteers.FindAsync(updatedVolunteer.Id);
+                if (existingVolunteer == null) throw new ArgumentException("Volunteer not found.");
+
                 existingVolunteer.FirstName = updatedVolunteer.FirstName;
                 existingVolunteer.LastName = updatedVolunteer.LastName;
                 existingVolunteer.Phone = updatedVolunteer.Phone;
                 existingVolunteer.Latitude = updatedVolunteer.Latitude;
                 existingVolunteer.Longitude = updatedVolunteer.Longitude;
                 existingVolunteer.Address = updatedVolunteer.Address;
-                existingVolunteer.Image = updatedVolunteer.Image;
 
-                _context.SaveChanges();  // Save changes to the database
+                if (newPhoto != null)
+                {
+                    await _storageService.DeletePhotoAsync(existingVolunteer.UniqueIdNumber);
+                    existingVolunteer.PhotoUrl = await _storageService.UploadPhotoAsync(newPhoto, existingVolunteer.UniqueIdNumber);
+                }
+
+                await _context.SaveChangesAsync();
             }
-        }
-
-        public void DeleteVolunteer(int id)
-        {
-            var volunteer = _context.Volunteers.Find(id);
-            if (volunteer != null)
+            catch (Exception ex)
             {
-                _context.Volunteers.Remove(volunteer);
-                _context.SaveChanges();  // Save changes to the database
+                // Log the exception if logging is set up
+                throw new Exception("An error occurred while updating the volunteer.", ex);
             }
         }
+
+        public async Task DeleteVolunteerAsync(int id)
+        {
+            try
+            {
+                var volunteer = await _context.Volunteers.FindAsync(id);
+                if (volunteer == null) throw new ArgumentException("Volunteer not found.");
+
+                await _storageService.DeletePhotoAsync(volunteer.UniqueIdNumber);
+
+                _context.Volunteers.Remove(volunteer);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if logging is set up
+                throw new Exception("An error occurred while deleting the volunteer.", ex);
+            }
+        }
+
     }
 }

@@ -19,14 +19,14 @@
         public string Address { get; set; }
 
         // URL for the volunteer's image
-        public string Image { get; set; }
+        public string PhotoUrl { get; set; }
 
         // Constructor for convenience (optional)
         public Volunteer()
         {
         }
 
-        public Volunteer(string uniqueIdNumber, string firstName, string lastName, string phone, decimal latitude, decimal longitude, string address, string image)
+        public Volunteer(string uniqueIdNumber, string firstName, string lastName, string phone, decimal latitude, decimal longitude, string address, string photoUrl)
         {
             UniqueIdNumber = uniqueIdNumber;
             FirstName = firstName;
@@ -35,7 +35,7 @@
             Latitude = latitude;
             Longitude = longitude;
             Address = address;
-            Image = image;
+            PhotoUrl = photoUrl;
         }
     }
 }

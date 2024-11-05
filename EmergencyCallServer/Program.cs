@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register VolunteerModel as scoped
+builder.Services.AddScoped<VolunteerModel>();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -15,6 +18,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Register RouteModel with HttpClient for dependency injection
 builder.Services.AddHttpClient<RouteModel>();
+
 // Register EventVolunteersModel
 builder.Services.AddTransient<EventVolunteersModel>();
 
@@ -27,6 +31,18 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+});
+builder.Services.AddSingleton<GeocodingModel>(provider =>
+{
+    var apiKey = "AIzaSyAOO3UGtE0Dq35gR_oQJj4ViJmw96tSe4w"; // Ensure your API key is in appsettings.json
+    return new GeocodingModel(apiKey);
+});
+
+// Register GoogleCloudStorageService
+builder.Services.AddSingleton(sp =>
+{
+    var bucketName = "volunteerphotos";
+    return new GoogleCloudStorageModel(bucketName);
 });
 
 var app = builder.Build();
