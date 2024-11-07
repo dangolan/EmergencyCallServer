@@ -3,6 +3,7 @@ using Google.Cloud.Storage.V1;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace EmergencyCallServer.Models
@@ -25,7 +26,13 @@ namespace EmergencyCallServer.Models
             try
             {
                 if (volunteer == null) throw new ArgumentNullException(nameof(volunteer), "Volunteer cannot be null.");
-              
+
+                // Ensure UniqueIdNumber contains only digits
+                if (!Regex.IsMatch(volunteer.UniqueIdNumber, @"^\d+$"))
+                {
+                    throw new ArgumentException("UniqueIdNumber must contain only numeric characters.");
+                }
+
 
                 // Check for duplicate UniqueIdNumber
                 if (_volunteersDB.Volunteers.Any(v => v.UniqueIdNumber == volunteer.UniqueIdNumber))
@@ -44,7 +51,7 @@ namespace EmergencyCallServer.Models
                     volunteer.PhotoUrl = "NoPhoto";
                 }
 
-                // Try to get coordinates for the address
+                ///Try to get coordinates for the address
                 try
                 {
                     if (!string.IsNullOrEmpty(volunteer.Address))
@@ -66,9 +73,22 @@ namespace EmergencyCallServer.Models
             catch (Exception ex)
             {
                 // Log the exception if logging is set up
-                throw new Exception("An error occurred while adding the volunteer.", ex);
+                throw new Exception(ex.Message, ex);
             }
         }
+        public async Task<List<Volunteer>> GetAllVolunteersAsync()
+        {
+            var volunteers = await _volunteersDB.Volunteers.ToListAsync();
+
+            if (volunteers == null || !volunteers.Any())
+            {
+                throw new Exception("No volunteers found in the database.");
+            }
+
+            return volunteers;
+
+        }
+
 
         public async Task<Volunteer> GetVolunteerAsync(int id)
         {
@@ -99,6 +119,12 @@ namespace EmergencyCallServer.Models
                 // Check if the volunteer exists in the database
                 var existingVolunteer = await _volunteersDB.Volunteers.FindAsync(updatedVolunteer.Id);
                 if (existingVolunteer == null) throw new ArgumentException("Volunteer not found.");
+
+                // Ensure UniqueIdNumber contains only digits
+                if (!Regex.IsMatch(updatedVolunteer.UniqueIdNumber, @"^\d+$"))
+                {
+                    throw new ArgumentException("UniqueIdNumber must contain only numeric characters.");
+                }
 
                 // Check for duplicate UniqueIdNumber if it has changed
                 if (_volunteersDB.Volunteers.Any(v => v.UniqueIdNumber == updatedVolunteer.UniqueIdNumber && v.Id != updatedVolunteer.Id))

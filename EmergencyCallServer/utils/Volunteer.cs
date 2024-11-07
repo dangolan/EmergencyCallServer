@@ -21,6 +21,7 @@
         // URL for the volunteer's image
         public string PhotoUrl { get; set; }
 
+
         // Constructor for convenience (optional)
         public Volunteer()
         {

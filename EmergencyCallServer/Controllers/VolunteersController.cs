@@ -17,7 +17,7 @@ namespace EmergencyCallServer.Controllers
             _volunteerModel = volunteerModel;
         }
 
-        [HttpPost]
+        [HttpPost("Add")]
         public async Task<IActionResult> AddVolunteer([FromForm] Volunteer volunteer, [FromForm] PhotoUpload photo)
         {
             // Validate volunteer details
@@ -63,9 +63,23 @@ namespace EmergencyCallServer.Controllers
                 return StatusCode(500, $"An error occurred while adding the volunteer: {ex.Message}");
             }
         }
+        [HttpGet("GetAll")]
+        public async Task<IActionResult> GetAllVolunteers()
+        {
+            try
+            {
+                var volunteers = await _volunteerModel.GetAllVolunteersAsync();
+                return Ok(volunteers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while retrieving volunteers: {ex.Message}");
+            }
+        }
 
 
-        [HttpGet("{id}")]
+
+        [HttpGet("Get/{id}")]
         public async Task<ActionResult<Volunteer>> GetVolunteer(int id)
         {
             try
@@ -83,7 +97,7 @@ namespace EmergencyCallServer.Controllers
             }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("Update/{id}")]
         public async Task<IActionResult> UpdateVolunteer(int id, [FromForm] Volunteer updatedVolunteer, [FromForm] PhotoUpload newPhoto)
         {
             // Check if the volunteer data is valid
@@ -130,7 +144,7 @@ namespace EmergencyCallServer.Controllers
         }
 
 
-        [HttpDelete("{id}")]
+        [HttpDelete("Delete/{id}")]
         public async Task<IActionResult> DeleteVolunteer(int id)
         {
             try
